@@ -172,7 +172,7 @@ Restaurant.findByOwner = async function (ownerId) {
  * @returns {Promise<Array>} Array of restaurant instances
  */
 Restaurant.findActive = async function (options = {}) {
-  const { limit = 50, offset = 0, city, cuisine_type, ...otherOptions } = options;
+  const { limit = 50, offset = 0, city, cuisine_type, min_rating, ...otherOptions } = options;
 
   const where = {
     is_active: true,
@@ -187,6 +187,13 @@ Restaurant.findActive = async function (options = {}) {
 
   if (cuisine_type) {
     where.cuisine_type = cuisine_type;
+  }
+
+  if (min_rating !== undefined && min_rating !== null) {
+    // Filter by minimum rating (e.g., > 3 for Popular)
+    where.average_rating = {
+      [Op.gt]: parseFloat(min_rating),
+    };
   }
 
   return await this.findAll({

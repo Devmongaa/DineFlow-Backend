@@ -16,11 +16,12 @@ const { authenticateToken, requireRole } = require("../middleware/auth.middlewar
  */
 router.get("/", async (req, res) => {
   try {
-    const { city, cuisine_type, limit = 50, offset = 0 } = req.query;
+    const { city, cuisine_type, min_rating, limit = 50, offset = 0 } = req.query;
 
     const restaurants = await Restaurant.findActive({
       city,
       cuisine_type,
+      min_rating: min_rating ? parseFloat(min_rating) : undefined,
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
