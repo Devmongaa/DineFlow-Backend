@@ -495,4 +495,137 @@ router.post("/", authenticateToken, requireRole(["restaurant_owner"]), async (re
   }
 });
 
+/**
+ * @route   PUT /api/restaurants/:id
+ * @desc    Update restaurant details (restaurant owner only, must own restaurant)
+ * @access  Private (restaurant_owner)
+ */
+router.put("/:id", authenticateToken, requireRole(["restaurant_owner"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      cuisine_type,
+      address,
+      city,
+      state,
+      zip_code,
+      phone,
+      email,
+      latitude,
+      longitude,
+      opening_time,
+      closing_time,
+      image_url,
+    } = req.body;
+
+    // Find restaurant
+    const restaurant = await Restaurant.findById(id);
+
+    if (!restaurant) {
+      return res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+    }
+
+    // Check if user owns this restaurant
+    if (restaurant.owner_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update your own restaurants",
+      });
+    }
+
+    // Prepare update data (only include provided fields)
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (cuisine_type !== undefined) updateData.cuisine_type = cuisine_type;
+    if (address !== undefined) updateData.address = address;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (zip_code !== undefined) updateData.zip_code = zip_code;
+    if (phone !== undefined) updateData.phone = phone;
+    if (email !== undefined) updateData.email = email;
+    if (latitude !== undefined) updateData.latitude = latitude ? parseFloat(latitude) : null;
+    if (longitude !== undefined) updateData.longitude = longitude ? parseFloat(longitude) : null;
+    if (opening_time !== undefined) updateData.opening_time = opening_time;
+    if (closing_time !== undefined) updateData.closing_time = closing_time;
+    if (image_url !== undefined) updateData.image_url = image_url;
+
+    // Update restaurant
+    const updatedRestaurant = await Restaurant.updateRestaurant(id, updateData);
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant updated successfully",
+      data: {
+        restaurant: updatedRestaurant,
+      },
+    });
+  } catch (error) {
+    console.error("Update restaurant error:", error);
+
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: error.errors.map((err) => err.message),
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/restaurants/:id
+ * @desc    Delete restaurant (restaurant owner only, must own restaurant)
+ * @access  Private (restaurant_owner)
+ */
+router.delete("/:id", authenticateToken, requireRole(["restaurant_owner"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find restaurant
+    const restaurant = await Restaurant.findById(id);
+
+    if (!restaurant) {
+      return res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+    }
+
+    // Check if user owns this restaurant
+    if (restaurant.owner_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own restaurants",
+      });
+    }
+
+    // Soft delete (set is_active to false)
+    await restaurant.update({ is_active: false, is_accepting_orders: false });
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete restaurant error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;
